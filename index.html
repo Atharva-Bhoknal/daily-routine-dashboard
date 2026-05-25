@@ -722,20 +722,8 @@ function clearAndWrite(sh, headers, arr, rowFn) {
 
 <script>
 /* ── GOOGLE SHEETS BACKEND ─────────────────── */
-// ╔══════════════════════════════════════════════════════════════════╗
-// ║  CHANGE THIS LINE — paste your Google Apps Script Web App URL   ║
-// ╚══════════════════════════════════════════════════════════════════╝
-const HARDCODED_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyb2zQpZB4SGHp9L8dLoj6RHM6oa5GxxM2mCR2wwJPw6LqwdB1VC7iq0LRVKex3yp_h/exec';
-
 const GS_URL_KEY = 'myRoutine_gsUrl';
-// Use the hardcoded URL first; fallback to localStorage if blank
-let gsUrl = HARDCODED_SHEETS_URL.includes('YOUR_SCRIPT_ID_HERE')
-  ? (localStorage.getItem(GS_URL_KEY) || '')
-  : HARDCODED_SHEETS_URL;
-// Keep localStorage in sync so manual overrides via modal still work
-if (gsUrl && !HARDCODED_SHEETS_URL.includes('YOUR_SCRIPT_ID_HERE')) {
-  localStorage.setItem(GS_URL_KEY, gsUrl);
-}
+let gsUrl = localStorage.getItem(GS_URL_KEY) || '';
 let isSyncing = false;
 let pendingSync = false;
 
@@ -779,9 +767,11 @@ async function pushToSheets() {
   setLoadingBar(true);
   try {
     const resp = await fetch(gsUrl, {
-      method: 'POST', mode: 'cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'saveAll', data: { tasks, recurring } })
+  method: 'POST',
+  body: JSON.stringify({
+    action: 'saveAll',
+    data: { tasks, recurring }
+  })
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     setSyncStatus('synced', 'Synced ✓');
@@ -819,7 +809,7 @@ function saveScriptUrl() {
   const val = document.getElementById('script-url-input').value.trim();
   if (!val) { alert('Please enter the Web App URL.'); return; }
   gsUrl = val;
-  localStorage.setItem(GS_URL_KEY, val);
+  localStorage.setItem(GS_URL_KEY, gsUrl);
   closeSetupModal();
   notify('✅ Google Sheets connected! Fetching data…');
   fetchFromSheets().then(ok => { if (ok) { renderToday(); renderRecurring(); } });
@@ -1394,9 +1384,8 @@ if (gsUrl) {
   });
 } else {
   setSyncStatus('local', 'Local only');
-  // Only show setup modal if URL is not hardcoded and user hasn't seen it
-  if (!HARDCODED_SHEETS_URL.includes('YOUR_SCRIPT_ID_HERE') === false
-      && !localStorage.getItem('myRoutine_seenSetup')) {
+  // Show setup modal on first visit (no gsUrl ever stored)
+  if (!localStorage.getItem('myRoutine_seenSetup')) {
     localStorage.setItem('myRoutine_seenSetup', '1');
     setTimeout(() => openSetupModal(), 400);
   }
