@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Routine Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0efe9;
+    --border: #e2e0d8;
+    --border2: #cccab8;
+    --text: #1a1916;
+    --text2: #6b6860;
+    --text3: #9e9c93;
+    --blue: #2563eb;
+    --blue-light: #eff4ff;
+    --blue-text: #1d4ed8;
+    --green: #16a34a;
+    --green-light: #f0fdf4;
+    --green-text: #15803d;
+    --amber: #d97706;
+    --amber-light: #fffbeb;
+    --amber-text: #b45309;
+    --red: #dc2626;
+    --red-light: #fef2f2;
+    --red-text: #b91c1c;
+    --teal: #0d9488;
+    --teal-light: #f0fdfa;
+    --teal-text: #0f766e;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+    --sidebar-w: 220px;
+    --bottom-nav-h: 60px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: var(--bg); font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text); }
+  body { min-height: 100vh; }
+
+  /* ── LAYOUT ── */
+  .shell { display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: var(--sidebar-w); min-height: 100vh; background: var(--surface);
+    border-right: 1px solid var(--border); padding: 24px 0;
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 20;
+    display: flex; flex-direction: column; transition: transform .2s ease;
+  }
+  .sidebar-logo {
+    padding: 0 20px 24px; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+  }
+  .sidebar-logo span { font-size: 16px; font-weight: 600; letter-spacing: -.3px; }
+  .sidebar-logo small { display: block; font-size: 11px; color: var(--text3); margin-top: 2px; font-family: 'DM Mono', monospace; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px; cursor: pointer; font-size: 13.5px; font-weight: 500;
+    color: var(--text2); transition: all .15s; border-left: 3px solid transparent;
+    text-decoration: none;
+  }
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--blue); background: var(--blue-light); border-left-color: var(--blue); }
+  .nav-icon { font-size: 17px; width: 20px; text-align: center; flex-shrink: 0; }
+  .nav-label {}
+  .sidebar-bottom { margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+
+  .main { margin-left: var(--sidebar-w); padding: 32px 36px; min-height: 100vh; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Mobile overlay backdrop */
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+    z-index: 19; backdrop-filter: blur(1px);
+  }
+  .sidebar-overlay.show { display: block; }
+
+  /* Mobile top bar */
+  .mobile-topbar {
+    display: none; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 15;
+  }
+  .mobile-topbar-title { font-size: 15px; font-weight: 600; }
+  .hamburger { background: none; border: none; cursor: pointer; font-size: 20px; padding: 4px 8px; color: var(--text); }
+
+  /* Bottom nav (mobile) */
+  .bottom-nav {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    height: var(--bottom-nav-h); background: var(--surface); border-top: 1px solid var(--border);
+    z-index: 18; align-items: stretch;
+  }
+  .bottom-nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; cursor: pointer; font-size: 11px; font-weight: 500;
+    color: var(--text3); transition: color .15s; border: none; background: none;
+    padding: 6px 0;
+  }
+  .bottom-nav-item .bn-icon { font-size: 20px; }
+  .bottom-nav-item.active { color: var(--blue); }
+
+  /* Sync status */
+  .sync-pill {
+    font-size: 11px; border-radius: 99px; padding: 4px 10px; font-weight: 600;
+    display: flex; align-items: center; gap: 5px; transition: all .3s;
+  }
+  .sync-pill .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .sync-pill.local  { background: var(--amber-light); color: var(--amber-text); }
+  .sync-pill.local .dot  { background: var(--amber); }
+  .sync-pill.synced { background: var(--green-light); color: var(--green-text); }
+  .sync-pill.synced .dot { background: var(--green); }
+  .sync-pill.syncing { background: var(--blue-light); color: var(--blue-text); }
+  .sync-pill.syncing .dot { background: var(--blue); animation: pulse 1s infinite; }
+  .sync-pill.error  { background: var(--red-light); color: var(--red-text); }
+  .sync-pill.error .dot  { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── HEADER ── */
+  .page-header { margin-bottom: 24px; }
+  .page-title { font-size: 22px; font-weight: 600; letter-spacing: -.4px; }
+  .page-subtitle { font-size: 13px; color: var(--text3); margin-top: 3px; font-family: 'DM Mono', monospace; }
+
+  /* ── METRICS ── */
+  .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+  .metric {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .metric-val { font-size: 26px; font-weight: 600; display: block; line-height: 1.1; }
+  .metric-lbl { font-size: 11px; color: var(--text3); margin-top: 4px; display: block; text-transform: uppercase; letter-spacing: .5px; }
+  .metric-val.blue  { color: var(--blue); }
+  .metric-val.red   { color: var(--red); }
+  .metric-val.green { color: var(--green); }
+  .metric-val.amber { color: var(--amber); }
+
+  /* Progress bar */
+  .prog-wrap { background: var(--surface2); border-radius: 99px; height: 7px; margin-bottom: 24px; overflow: hidden; }
+  .prog-bar { height: 7px; border-radius: 99px; background: linear-gradient(90deg, var(--blue), #60a5fa); transition: width .5s ease; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 20px 24px; margin-bottom: 16px; box-shadow: var(--shadow);
+  }
+  .card-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; min-width: 520px; }
+  th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text3); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13.5px; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--surface2); }
+  tr.done td { color: var(--text3); text-decoration: line-through; }
+  tr.done td .badge, tr.done td strong { text-decoration: none; }
+
+  /* Mobile task cards (shown instead of table rows on small screens) */
+  .task-card-list { display: none; }
+  .task-card {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px;
+    margin-bottom: 8px; background: var(--surface); display: flex; gap: 10px; align-items: flex-start;
+  }
+  .task-card.done .task-card-name { text-decoration: line-through; color: var(--text3); }
+  .task-card-body { flex: 1; min-width: 0; }
+  .task-card-name { font-weight: 500; font-size: 13.5px; margin-bottom: 4px; }
+  .task-card-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--text3); }
+
+  /* ── BADGES ── */
+  .badge { display: inline-block; font-size: 11px; padding: 3px 9px; border-radius: 99px; font-weight: 600; letter-spacing: .2px; white-space: nowrap; }
+  .badge-planned   { background: var(--blue-light);  color: var(--blue-text); }
+  .badge-unplanned { background: var(--amber-light); color: var(--amber-text); }
+  .badge-recurring { background: var(--green-light); color: var(--green-text); }
+  .badge-cat       { background: var(--surface2);    color: var(--text2); border: 1px solid var(--border); }
+
+  /* ── FORMS ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-full { grid-column: 1 / -1; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .4px; }
+  input[type=text], input[type=number], input[type=time], input[type=date], select, textarea {
+    padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: var(--text);
+    background: var(--surface); transition: border .15s; outline: none; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+  input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--blue); flex-shrink: 0; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 8px 16px; border-radius: var(--radius); border: 1px solid var(--border);
+    cursor: pointer; font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 500;
+    background: var(--surface); color: var(--text); transition: all .15s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: var(--surface2); border-color: var(--border2); }
+  .btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn-primary:hover { background: var(--blue-text); border-color: var(--blue-text); }
+  .btn-green { background: var(--green); color: #fff; border-color: var(--green); }
+  .btn-green:hover { background: var(--green-text); }
+  .btn-danger { color: var(--red-text); border-color: #fca5a5; background: var(--red-light); }
+  .btn-danger:hover { background: #fee2e2; }
+  .btn-sm  { padding: 5px 11px; font-size: 12px; }
+  .btn-xs  { padding: 3px 8px; font-size: 11px; }
+
+  /* ── TAB BAR ── */
+  .tab-bar { display: inline-flex; gap: 4px; margin-bottom: 20px; background: var(--surface2); border-radius: var(--radius); padding: 4px; flex-wrap: wrap; }
+  .tab { padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text2); transition: all .15s; white-space: nowrap; }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--surface); color: var(--blue); box-shadow: var(--shadow); }
+
+  /* ── EMPTY STATE ── */
+  .empty { text-align: center; color: var(--text3); padding: 28px 0; font-size: 13px; }
+  .empty a { color: var(--blue); text-decoration: none; }
+
+  /* ── RECURRING CARD ── */
+  .rec-card { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 10px; background: var(--surface); }
+  .rec-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; gap: 10px; flex-wrap: wrap; }
+  .rec-meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text3); margin-bottom: 10px; }
+  .rec-meta span { display: flex; align-items: center; gap: 4px; }
+  .rec-prog-wrap { background: var(--surface2); border-radius: 99px; height: 6px; overflow: hidden; }
+  .rec-prog-bar { height: 6px; border-radius: 99px; background: linear-gradient(90deg, var(--green), #4ade80); transition: width .4s; }
+  .recurring-note { font-size: 11px; color: var(--teal-text); background: var(--teal-light); padding: 2px 7px; border-radius: 4px; margin-top: 3px; display: inline-block; }
+
+  /* ── NOTIFICATION ── */
+  .notif {
+    position: fixed; bottom: 80px; right: 16px; background: #1a1916; color: #fff;
+    padding: 11px 18px; border-radius: var(--radius-lg); font-size: 13px; font-weight: 500;
+    opacity: 0; transform: translateY(8px); transition: all .25s; pointer-events: none; z-index: 999; max-width: 280px;
+  }
+  .notif.show { opacity: 1; transform: translateY(0); }
+
+  /* ── CHART ── */
+  .chart-wrap { position: relative; width: 100%; height: 260px; }
+
+  /* ── UTILS ── */
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .row-between { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .mt8 { margin-top: 8px; }
+  .mt16 { margin-top: 16px; }
+  .task-name-cell strong { font-weight: 500; }
+  .task-name-cell .sub { font-size: 11.5px; color: var(--text3); margin-top: 2px; }
+
+  /* ── SETUP MODAL ── */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    z-index: 100; align-items: center; justify-content: center; padding: 16px;
+    backdrop-filter: blur(2px);
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: var(--radius-lg); padding: 28px 28px 24px;
+    max-width: 540px; width: 100%; box-shadow: var(--shadow-md); max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .modal p  { font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.6; }
+  .modal ol { padding-left: 18px; font-size: 13px; color: var(--text2); line-height: 2; margin-bottom: 16px; }
+  .modal code {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+    padding: 2px 6px; font-family: 'DM Mono', monospace; font-size: 12px; display: block;
+    margin: 8px 0; padding: 10px 12px; white-space: pre-wrap; word-break: break-all; color: var(--blue-text);
+  }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 20px; }
+
+  /* ── LOADING OVERLAY ── */
+  .loading-bar {
+    position: fixed; top: 0; left: 0; right: 0; height: 3px; background: var(--blue);
+    z-index: 200; transform-origin: left; transform: scaleX(0); transition: transform .3s ease;
+  }
+  .loading-bar.active { transform: scaleX(0.7); }
+  .loading-bar.done   { transform: scaleX(1); transition: transform .1s; }
+
+  /* ── RESPONSIVE: Tablet 768–1024 ── */
+  @media (max-width: 1024px) {
+    .metrics { grid-template-columns: repeat(3, 1fr); }
+    .main { padding: 24px 24px; }
+  }
+
+  /* ── RESPONSIVE: Collapsed sidebar 640–899 ── */
+  @media (max-width: 899px) and (min-width: 641px) {
+    :root { --sidebar-w: 64px; }
+    .sidebar-logo span, .sidebar-logo small { display: none; }
+    .nav-label { display: none; }
+    .sidebar-bottom .btn span { display: none; }
+    .sidebar-bottom .btn { justify-content: center; padding: 7px; }
+    .sidebar-logo { padding: 0 10px 20px; text-align: center; }
+    .main { padding: 20px 18px; }
+  }
+
+  /* ── RESPONSIVE: Full mobile < 640px ── */
+  @media (max-width: 640px) {
+    .sidebar { transform: translateX(-100%); width: 240px; }
+    .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-md); }
+    .main { margin-left: 0; padding: 0; padding-bottom: var(--bottom-nav-h); }
+    .mobile-topbar { display: flex; }
+    .bottom-nav { display: flex; }
+    .page { padding: 16px; }
+
+    /* Metrics: 2 cols on mobile */
+    .metrics { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .metric { padding: 12px 12px; }
+    .metric-val { font-size: 22px; }
+
+    /* Forms: 1 col */
+    .form-grid { grid-template-columns: 1fr; }
+    .form-full { grid-column: 1; }
+
+    /* Tab bar: scrollable */
+    .tab-bar { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-width: 100%; flex-wrap: nowrap; padding-bottom: 2px; }
+    .tab-bar::-webkit-scrollbar { display: none; }
+
+    /* Cards: tighter padding */
+    .card { padding: 14px 14px; }
+    .card-title { font-size: 13px; }
+
+    /* Tables: hide, show cards instead */
+    .table-wrap { display: none; }
+    .task-card-list { display: block; }
+
+    /* Page header */
+    .page-header { margin-bottom: 16px; }
+    .page-title { font-size: 18px; }
+
+    /* Row between wrap */
+    .row-between { align-items: flex-start; }
+
+    /* Sidebar bottom items in mobile sidebar */
+    .sidebar-bottom { padding: 12px 16px; }
+
+    /* Notif higher up from bottom nav */
+    .notif { bottom: calc(var(--bottom-nav-h) + 12px); }
+  }
+
+  @media (max-width: 380px) {
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .tab { padding: 6px 10px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading bar -->
+<div class="loading-bar" id="loading-bar"></div>
+
+<!-- Setup modal -->
+<div class="modal-backdrop" id="setup-modal">
+  <div class="modal">
+    <h2>🔗 Connect Google Sheets</h2>
+    <p>Your data will be stored in a Google Sheet — accessible from any device. Follow these steps to set it up (one-time, takes ~3 minutes):</p>
+    <ol>
+      <li>Open <strong>Google Sheets</strong> and create a new spreadsheet.</li>
+      <li>Go to <strong>Extensions → Apps Script</strong>.</li>
+      <li>Delete the default code and paste the script below.</li>
+      <li>Click <strong>Deploy → New deployment → Web app</strong>.</li>
+      <li>Set <em>"Who has access"</em> to <strong>Anyone</strong>, then click Deploy.</li>
+      <li>Copy the <strong>Web app URL</strong> and paste it below.</li>
+    </ol>
+    <p style="margin-bottom:4px"><strong>Apps Script to paste:</strong></p>
+    <code id="apps-script-code">// Daily Routine Dashboard — Apps Script Backend
+const SHEET_NAME_TASKS = 'Tasks';
+const SHEET_NAME_REC   = 'Recurring';
+
+function getOrCreateSheet(ss, name, headers) {
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.appendRow(headers);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function doGet(e) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const tSh = getOrCreateSheet(ss, SHEET_NAME_TASKS,
+    ['id','name','date','type','done','startTime','endTime','category','notes','recurringId','recurringDaysLeft']);
+  const rSh = getOrCreateSheet(ss, SHEET_NAME_REC,
+    ['id','name','startDate','totalDays','daysLeft','duration','startTime','endTime','category']);
+
+  const tasks = sheetToArr(tSh);
+  const rec   = sheetToArr(rSh);
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ tasks, recurring: rec }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const body = JSON.parse(e.postData.contents);
+  const { action, data } = body;
+
+  const tSh = getOrCreateSheet(ss, SHEET_NAME_TASKS,
+    ['id','name','date','type','done','startTime','endTime','category','notes','recurringId','recurringDaysLeft']);
+  const rSh = getOrCreateSheet(ss, SHEET_NAME_REC,
+    ['id','name','startDate','totalDays','daysLeft','duration','startTime','endTime','category']);
+
+  if (action === 'saveAll') {
+    clearAndWrite(tSh,
+      ['id','name','date','type','done','startTime','endTime','category','notes','recurringId','recurringDaysLeft'],
+      data.tasks, t => [t.id,t.name,t.date,t.type,t.done?1:0,t.startTime||'',t.endTime||'',t.category||'',t.notes||'',t.recurringId||'',t.recurringDaysLeft||'']);
+    clearAndWrite(rSh,
+      ['id','name','startDate','totalDays','daysLeft','duration','startTime','endTime','category'],
+      data.recurring, r => [r.id,r.name,r.startDate,r.totalDays,r.daysLeft,r.duration||'',r.startTime||'',r.endTime||'',r.category||'']);
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ ok: true }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function sheetToArr(sh) {
+  const rows = sh.getDataRange().getValues();
+  if (rows.length < 2) return [];
+  const headers = rows[0];
+  return rows.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = row[i]; });
+    // coerce
+    if ('done' in obj) obj.done = obj.done == 1 || obj.done === true || obj.done === 'TRUE';
+    if ('totalDays' in obj) obj.totalDays = Number(obj.totalDays) || 0;
+    if ('daysLeft'  in obj) obj.daysLeft  = Number(obj.daysLeft)  || 0;
+    return obj;
+  });
+}
+
+function clearAndWrite(sh, headers, arr, rowFn) {
+  const lastRow = sh.getLastRow();
+  if (lastRow > 1) sh.deleteRows(2, lastRow - 1);
+  if (arr && arr.length) sh.getRange(2, 1, arr.length, headers.length).setValues(arr.map(rowFn));
+}</code>
+    <div class="form-group" style="margin-top:16px">
+      <label>Your Web App URL</label>
+      <input type="text" id="script-url-input" placeholder="https://script.google.com/macros/s/…/exec" style="font-size:12px">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="useLocalOnly()">Use Local Only</button>
+      <button class="btn btn-primary btn-sm" onclick="saveScriptUrl()">Save & Connect</button>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <span>📋 MyRoutine</span>
+      <small>Daily Dashboard</small>
+    </div>
+    <nav>
+      <a class="nav-item active" onclick="showPage('today');closeSidebar()" href="#">
+        <span class="nav-icon">📅</span><span class="nav-label">Today</span>
+      </a>
+      <a class="nav-item" onclick="showPage('add-task');closeSidebar()" href="#">
+        <span class="nav-icon">➕</span><span class="nav-label">Add Task</span>
+      </a>
+      <a class="nav-item" onclick="showPage('recurring');closeSidebar()" href="#">
+        <span class="nav-icon">🔁</span><span class="nav-label">Recurring</span>
+      </a>
+      <a class="nav-item" onclick="showPage('progress');closeSidebar()" href="#">
+        <span class="nav-icon">📊</span><span class="nav-label">Progress</span>
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="sync-pill local" id="sync-pill"><span class="dot"></span> <span id="sync-label">Local only</span></div>
+      <button class="btn btn-sm" onclick="openSetupModal()" style="width:100%;justify-content:center">⚙ <span>Sheets Setup</span></button>
+      <button class="btn btn-sm" onclick="forcSync()" style="width:100%;justify-content:center">☁ <span>Sync Now</span></button>
+      <button class="btn btn-sm" onclick="exportCSV()" style="width:100%;justify-content:center">⬇ <span>Export CSV</span></button>
+      <label class="btn btn-sm" style="width:100%;justify-content:center;cursor:pointer">
+        ⬆ <span>Import CSV</span>
+        <input type="file" accept=".csv,.json" style="display:none" onchange="importData(this)">
+      </label>
+    </div>
+  </aside>
+
+  <!-- Overlay for mobile sidebar -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <!-- Mobile top bar -->
+  <div class="mobile-topbar">
+    <button class="hamburger" onclick="toggleSidebar()">☰</button>
+    <span class="mobile-topbar-title" id="mobile-page-title">Today</span>
+    <div class="sync-pill local" id="sync-pill-mobile" style="font-size:10px;padding:3px 8px"><span class="dot"></span></div>
+  </div>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TODAY -->
+    <div id="page-today" class="page active">
+      <div class="row-between page-header">
+        <div>
+          <div class="page-title" id="today-heading">Today</div>
+          <div class="page-subtitle" id="today-date-sub"></div>
+        </div>
+        <div class="row">
+          <input type="date" id="view-date" style="width:160px" onchange="renderToday()">
+        </div>
+      </div>
+
+      <div class="metrics" id="today-metrics"></div>
+      <div class="prog-wrap"><div class="prog-bar" id="today-prog" style="width:0%"></div></div>
+
+      <div class="card">
+        <div class="card-title">
+          Planned Tasks
+          <button class="btn btn-primary btn-sm" onclick="showPage('add-task')">+ Add Planned</button>
+        </div>
+        <!-- Desktop table -->
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:30px"></th>
+              <th>Task</th>
+              <th>Time Slot</th>
+              <th>Duration</th>
+              <th>Category</th>
+              <th>Type</th>
+              <th style="width:50px"></th>
+            </tr></thead>
+            <tbody id="planned-body"></tbody>
+          </table>
+        </div>
+        <!-- Mobile cards -->
+        <div class="task-card-list" id="planned-cards"></div>
+        <div class="empty" id="planned-empty" style="display:none">
+          No planned tasks for this day. <a href="#" onclick="showPage('add-task');return false">Add one →</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          Unplanned Tasks
+          <button class="btn btn-sm btn-green" onclick="quickAddUnplanned()">+ Quick Add</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:30px"></th>
+              <th>Task</th>
+              <th>Category</th>
+              <th>Notes</th>
+              <th>Type</th>
+              <th style="width:50px"></th>
+            </tr></thead>
+            <tbody id="unplanned-body"></tbody>
+          </table>
+        </div>
+        <div class="task-card-list" id="unplanned-cards"></div>
+        <div class="empty" id="unplanned-empty" style="display:none">No unplanned tasks yet.</div>
+      </div>
+    </div>
+
+    <!-- ADD TASK -->
+    <div id="page-add-task" class="page">
+      <div class="page-header">
+        <div class="page-title">Add Task</div>
+        <div class="page-subtitle">Create a new planned or unplanned task</div>
+      </div>
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchAddTab('planned',this)">📌 Planned Task</div>
+        <div class="tab" onclick="switchAddTab('unplanned',this)">⚡ Unplanned Task</div>
+      </div>
+
+      <div id="add-planned-form" class="card">
+        <div class="card-title">Planned Task Details</div>
+        <div class="form-grid">
+          <div class="form-group form-full">
+            <label>Task Name *</label>
+            <input type="text" id="pt-name" placeholder="e.g. Study for AI, Exercise, Read book...">
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="pt-date">
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="pt-cat">
+              <option>Study</option><option>Work</option><option>Exercise</option>
+              <option>Personal</option><option>Health</option><option>Reading</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Start Time</label>
+            <input type="time" id="pt-start">
+          </div>
+          <div class="form-group">
+            <label>End Time</label>
+            <input type="time" id="pt-end">
+          </div>
+          <div class="form-group form-full">
+            <label>Notes (optional)</label>
+            <input type="text" id="pt-notes" placeholder="Any extra details...">
+          </div>
+        </div>
+        <div class="row mt16">
+          <button class="btn btn-primary" onclick="addPlannedTask()">✓ Add Planned Task</button>
+          <button class="btn" onclick="clearPlannedForm()">Clear</button>
+        </div>
+      </div>
+
+      <div id="add-unplanned-form" class="card" style="display:none">
+        <div class="card-title">Unplanned Task Details</div>
+        <div class="form-grid">
+          <div class="form-group form-full">
+            <label>Task Name *</label>
+            <input type="text" id="ut-name" placeholder="e.g. Replied to emails, Fixed a bug...">
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="ut-date">
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="ut-cat">
+              <option>Study</option><option>Work</option><option>Exercise</option>
+              <option>Personal</option><option>Health</option><option>Reading</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group form-full">
+            <label>Notes (optional)</label>
+            <input type="text" id="ut-notes" placeholder="Any context...">
+          </div>
+        </div>
+        <div class="row mt16">
+          <button class="btn btn-primary" onclick="addUnplannedTask()">✓ Add Unplanned Task</button>
+          <button class="btn" onclick="clearUnplannedForm()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECURRING -->
+    <div id="page-recurring" class="page">
+      <div class="page-header">
+        <div class="page-title">Recurring Tasks</div>
+        <div class="page-subtitle">Tasks that repeat daily for a set number of days</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Create Recurring Task</div>
+        <div class="form-grid">
+          <div class="form-group form-full">
+            <label>Task Name *</label>
+            <input type="text" id="rt-name" placeholder="e.g. Learn Python, Morning Exercise...">
+          </div>
+          <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" id="rt-start">
+          </div>
+          <div class="form-group">
+            <label>Repeat for How Many Days *</label>
+            <input type="number" id="rt-days" min="1" placeholder="e.g. 10, 30, 90">
+          </div>
+          <div class="form-group">
+            <label>Daily Duration (label)</label>
+            <input type="text" id="rt-duration" placeholder="e.g. 2 hrs, 45 mins">
+          </div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="rt-cat">
+              <option>Study</option><option>Work</option><option>Exercise</option>
+              <option>Personal</option><option>Health</option><option>Reading</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Start Time (optional)</label>
+            <input type="time" id="rt-ts">
+          </div>
+          <div class="form-group">
+            <label>End Time (optional)</label>
+            <input type="time" id="rt-te">
+          </div>
+        </div>
+        <div class="row mt16">
+          <button class="btn btn-primary" onclick="addRecurring()">🔁 Create Recurring Task</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Active Recurring Tasks</div>
+        <div id="recurring-list"></div>
+      </div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div id="page-progress" class="page">
+      <div class="page-header">
+        <div class="page-title">Progress</div>
+        <div class="page-subtitle">Track your productivity over time</div>
+      </div>
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchProgressTab('daily',this)">📆 Daily</div>
+        <div class="tab" onclick="switchProgressTab('monthly',this)">📅 Monthly</div>
+        <div class="tab" onclick="switchProgressTab('yearly',this)">🗓 Yearly</div>
+      </div>
+      <div id="progress-content"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Mobile bottom nav -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bottom-nav-item active" onclick="showPage('today')" data-page="today">
+    <span class="bn-icon">📅</span><span>Today</span>
+  </button>
+  <button class="bottom-nav-item" onclick="showPage('add-task')" data-page="add-task">
+    <span class="bn-icon">➕</span><span>Add</span>
+  </button>
+  <button class="bottom-nav-item" onclick="showPage('recurring')" data-page="recurring">
+    <span class="bn-icon">🔁</span><span>Recurring</span>
+  </button>
+  <button class="bottom-nav-item" onclick="showPage('progress')" data-page="progress">
+    <span class="bn-icon">📊</span><span>Progress</span>
+  </button>
+</nav>
+
+<!-- Notification -->
+<div class="notif" id="notif"></div>
+
+<script>
+/* ── GOOGLE SHEETS BACKEND ─────────────────── */
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  CHANGE THIS LINE — paste your Google Apps Script Web App URL   ║
+// ╚══════════════════════════════════════════════════════════════════╝
+const HARDCODED_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyb2zQpZB4SGHp9L8dLoj6RHM6oa5GxxM2mCR2wwJPw6LqwdB1VC7iq0LRVKex3yp_h/exec';
+
+const GS_URL_KEY = 'myRoutine_gsUrl';
+// Use the hardcoded URL first; fallback to localStorage if blank
+let gsUrl = HARDCODED_SHEETS_URL.includes('YOUR_SCRIPT_ID_HERE')
+  ? (localStorage.getItem(GS_URL_KEY) || '')
+  : HARDCODED_SHEETS_URL;
+// Keep localStorage in sync so manual overrides via modal still work
+if (gsUrl && !HARDCODED_SHEETS_URL.includes('YOUR_SCRIPT_ID_HERE')) {
+  localStorage.setItem(GS_URL_KEY, gsUrl);
+}
+let isSyncing = false;
+let pendingSync = false;
+
+function setSyncStatus(status, label) {
+  const pills = [document.getElementById('sync-pill'), document.getElementById('sync-pill-mobile')];
+  pills.forEach(p => {
+    if (!p) return;
+    p.className = 'sync-pill ' + status;
+  });
+  const lbl = document.getElementById('sync-label');
+  if (lbl) lbl.textContent = label;
+}
+
+async function fetchFromSheets() {
+  if (!gsUrl) return false;
+  setSyncStatus('syncing', 'Loading…');
+  setLoadingBar(true);
+  try {
+    const resp = await fetch(gsUrl, { method: 'GET', mode: 'cors' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (data.tasks)     tasks     = data.tasks;
+    if (data.recurring) recurring = data.recurring;
+    savLocal();
+    setSyncStatus('synced', 'Synced ✓');
+    setLoadingBar(false);
+    return true;
+  } catch(err) {
+    console.error('Sheets fetch error', err);
+    setSyncStatus('error', 'Sync failed');
+    setLoadingBar(false);
+    return false;
+  }
+}
+
+async function pushToSheets() {
+  if (!gsUrl) return;
+  if (isSyncing) { pendingSync = true; return; }
+  isSyncing = true;
+  setSyncStatus('syncing', 'Saving…');
+  setLoadingBar(true);
+  try {
+    const resp = await fetch(gsUrl, {
+      method: 'POST', mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'saveAll', data: { tasks, recurring } })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    setSyncStatus('synced', 'Synced ✓');
+  } catch(err) {
+    console.error('Sheets push error', err);
+    setSyncStatus('error', 'Save failed');
+    notify('⚠️ Cloud save failed — data saved locally');
+  }
+  isSyncing = false;
+  setLoadingBar(false);
+  if (pendingSync) { pendingSync = false; pushToSheets(); }
+}
+
+function setLoadingBar(on) {
+  const lb = document.getElementById('loading-bar');
+  if (on) { lb.className = 'loading-bar active'; }
+  else    { lb.className = 'loading-bar done'; setTimeout(() => lb.className = 'loading-bar', 300); }
+}
+
+async function forcSync() {
+  if (!gsUrl) { openSetupModal(); return; }
+  const ok = await fetchFromSheets();
+  if (ok) { renderToday(); notify('☁️ Synced from Google Sheets!'); }
+}
+
+/* ── SETUP MODAL ───────────────────────────── */
+function openSetupModal() {
+  document.getElementById('setup-modal').classList.add('open');
+  document.getElementById('script-url-input').value = gsUrl || '';
+}
+function closeSetupModal() {
+  document.getElementById('setup-modal').classList.remove('open');
+}
+function saveScriptUrl() {
+  const val = document.getElementById('script-url-input').value.trim();
+  if (!val) { alert('Please enter the Web App URL.'); return; }
+  gsUrl = val;
+  localStorage.setItem(GS_URL_KEY, val);
+  closeSetupModal();
+  notify('✅ Google Sheets connected! Fetching data…');
+  fetchFromSheets().then(ok => { if (ok) { renderToday(); renderRecurring(); } });
+}
+function useLocalOnly() {
+  gsUrl = '';
+  localStorage.removeItem(GS_URL_KEY);
+  setSyncStatus('local', 'Local only');
+  closeSetupModal();
+  notify('📌 Using local storage only');
+}
+
+/* ── DATA LAYER ─────────────────────────────── */
+let tasks = [];
+let recurring = [];
+const TASKS_KEY = 'myRoutine_tasks_v2';
+const REC_KEY   = 'myRoutine_recurring_v2';
+
+function loadData() {
+  try {
+    const t = localStorage.getItem(TASKS_KEY);
+    const r = localStorage.getItem(REC_KEY);
+    tasks     = t ? JSON.parse(t) : [];
+    recurring = r ? JSON.parse(r) : [];
+  } catch(e) { tasks = []; recurring = []; }
+}
+function savLocal() {
+  try {
+    localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+    localStorage.setItem(REC_KEY,   JSON.stringify(recurring));
+  } catch(e) { notify('⚠ Local storage full'); }
+}
+function saveData() {
+  savLocal();
+  if (gsUrl) { pushToSheets(); }
+  else { setSyncStatus('local', 'Local only'); }
+}
+
+/* ── SIDEBAR / MOBILE NAV ───────────────────── */
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('show');
+}
+
+/* ── UTILS ──────────────────────────────────── */
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y, m, dd] = d.split('-');
+  return `${dd}/${m}/${y}`;
+}
+function minuteDiff(s, e) {
+  if (!s || !e) return 0;
+  const [sh, sm] = s.split(':').map(Number);
+  const [eh, em] = e.split(':').map(Number);
+  return (eh * 60 + em) - (sh * 60 + sm);
+}
+function fmtMin(m) {
+  if (m <= 0) return '—';
+  const h = Math.floor(m / 60), mn = m % 60;
+  return h > 0 ? (mn > 0 ? `${h}h ${mn}m` : `${h}h`) : `${mn}m`;
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── NOTIFICATION ───────────────────────────── */
+function notify(msg) {
+  const n = document.getElementById('notif');
+  n.textContent = msg;
+  n.classList.add('show');
+  clearTimeout(n._t);
+  n._t = setTimeout(() => n.classList.remove('show'), 2800);
+}
+
+/* ── NAV ─────────────────────────────────────── */
+let progressChart = null;
+const PAGE_TITLES = { today: 'Today', 'add-task': 'Add Task', recurring: 'Recurring', progress: 'Progress' };
+
+function showPage(p) {
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(x => x.classList.remove('active'));
+  document.getElementById('page-' + p).classList.add('active');
+  const map = { today: 0, 'add-task': 1, recurring: 2, progress: 3 };
+  const navItems = document.querySelectorAll('.nav-item');
+  if (map[p] !== undefined) navItems[map[p]].classList.add('active');
+  document.querySelector(`.bottom-nav-item[data-page="${p}"]`)?.classList.add('active');
+  document.getElementById('mobile-page-title').textContent = PAGE_TITLES[p] || '';
+  if (p === 'today')    renderToday();
+  if (p === 'recurring') renderRecurring();
+  if (p === 'progress')  renderProgress('daily');
+  return false;
+}
+
+function switchAddTab(t, el) {
+  document.querySelectorAll('.tab-bar .tab').forEach(x => x.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('add-planned-form').style.display   = t === 'planned'   ? 'block' : 'none';
+  document.getElementById('add-unplanned-form').style.display = t === 'unplanned' ? 'block' : 'none';
+}
+function switchProgressTab(t, el) {
+  document.querySelectorAll('#page-progress .tab').forEach(x => x.classList.remove('active'));
+  el.classList.add('active');
+  renderProgress(t);
+}
+
+/* ── RECURRING INJECTION ────────────────────── */
+function injectRecurringForDate(date) {
+  recurring.forEach(r => {
+    if (r.daysLeft <= 0) return;
+    if (date < (r.startDate || todayStr())) return;
+    const already = tasks.find(t => t.recurringId === r.id && t.date === date);
+    if (!already) {
+      tasks.push({
+        id: uid(), name: r.name, date, type: 'recurring', done: false,
+        startTime: r.startTime, endTime: r.endTime,
+        notes: r.duration ? r.duration + ' daily' : '',
+        category: r.category, recurringId: r.id, recurringDaysLeft: r.daysLeft
+      });
+      saveData();
+    }
+  });
+}
+
+/* ── TODAY ──────────────────────────────────── */
+function getViewDate() { return document.getElementById('view-date').value || todayStr(); }
+
+function renderToday() {
+  const date = getViewDate();
+  injectRecurringForDate(date);
+  const isToday = date === todayStr();
+  document.getElementById('today-heading').textContent =
+    isToday ? 'Today' : (date < todayStr() ? 'Past Day' : 'Upcoming Day');
+  document.getElementById('today-date-sub').textContent = fmtDate(date);
+
+  const dayTasks  = tasks.filter(t => t.date === date);
+  const planned   = dayTasks.filter(t => t.type !== 'unplanned');
+  const unplanned = dayTasks.filter(t => t.type === 'unplanned');
+  const done      = dayTasks.filter(t => t.done).length;
+  const total     = dayTasks.length;
+  const pct       = total > 0 ? Math.round(done / total * 100) : 0;
+  const minsDone  = planned.filter(t => t.done).reduce((a, t) => a + minuteDiff(t.startTime, t.endTime), 0);
+
+  document.getElementById('today-metrics').innerHTML = `
+    <div class="metric"><span class="metric-val">${total}</span><span class="metric-lbl">Total Tasks</span></div>
+    <div class="metric"><span class="metric-val blue">${done}</span><span class="metric-lbl">Completed</span></div>
+    <div class="metric"><span class="metric-val red">${total - done}</span><span class="metric-lbl">Remaining</span></div>
+    <div class="metric"><span class="metric-val ${pct >= 80 ? 'green' : pct >= 40 ? 'amber' : 'red'}">${pct}%</span><span class="metric-lbl">Progress</span></div>
+    <div class="metric"><span class="metric-val amber">${fmtMin(minsDone)}</span><span class="metric-lbl">Time Done</span></div>
+  `;
+  document.getElementById('today-prog').style.width = pct + '%';
+
+  const sorted = [...planned].sort((a, b) => (a.startTime || '99:99').localeCompare(b.startTime || '99:99'));
+
+  /* Desktop table */
+  const pb = document.getElementById('planned-body');
+  pb.innerHTML = '';
+  sorted.forEach(t => {
+    const dur = minuteDiff(t.startTime, t.endTime);
+    const tr = document.createElement('tr');
+    if (t.done) tr.className = 'done';
+    tr.innerHTML = `
+      <td><input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}',this.checked)"></td>
+      <td class="task-name-cell">
+        <strong>${esc(t.name)}</strong>
+        ${t.notes ? `<div class="sub">${esc(t.notes)}</div>` : ''}
+        ${t.recurringId ? `<span class="recurring-note">🔁 ${t.recurringDaysLeft} days left</span>` : ''}
+      </td>
+      <td style="font-family:'DM Mono',monospace;font-size:12.5px">${t.startTime && t.endTime ? t.startTime+' – '+t.endTime : (t.startTime||'—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12.5px">${dur > 0 ? fmtMin(dur) : '—'}</td>
+      <td><span class="badge badge-cat">${esc(t.category||'Other')}</span></td>
+      <td><span class="badge ${t.type==='recurring'?'badge-recurring':'badge-planned'}">${t.type==='recurring'?'🔁 Recurring':'📌 Planned'}</span></td>
+      <td><button class="btn btn-xs btn-danger" onclick="deleteTask('${t.id}')">✕</button></td>
+    `;
+    pb.appendChild(tr);
+  });
+
+  /* Mobile cards */
+  const pc = document.getElementById('planned-cards');
+  pc.innerHTML = '';
+  sorted.forEach(t => {
+    const dur = minuteDiff(t.startTime, t.endTime);
+    const div = document.createElement('div');
+    div.className = 'task-card' + (t.done ? ' done' : '');
+    div.innerHTML = `
+      <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}',this.checked)" style="margin-top:2px">
+      <div class="task-card-body">
+        <div class="task-card-name">${esc(t.name)}</div>
+        <div class="task-card-meta">
+          ${t.startTime ? `<span>🕐 ${t.startTime}${t.endTime?' – '+t.endTime:''}</span>` : ''}
+          ${dur > 0 ? `<span>⏱ ${fmtMin(dur)}</span>` : ''}
+          <span class="badge badge-cat">${esc(t.category||'Other')}</span>
+          <span class="badge ${t.type==='recurring'?'badge-recurring':'badge-planned'}">${t.type==='recurring'?'🔁':'📌'}</span>
+          ${t.recurringId ? `<span class="recurring-note">🔁 ${t.recurringDaysLeft}d left</span>` : ''}
+        </div>
+        ${t.notes ? `<div style="font-size:11.5px;color:var(--text3);margin-top:4px">${esc(t.notes)}</div>` : ''}
+      </div>
+      <button class="btn btn-xs btn-danger" onclick="deleteTask('${t.id}')">✕</button>
+    `;
+    pc.appendChild(div);
+  });
+
+  const planEmpty = sorted.length === 0;
+  document.getElementById('planned-empty').style.display = planEmpty ? 'block' : 'none';
+
+  /* Unplanned - desktop */
+  const ub = document.getElementById('unplanned-body');
+  ub.innerHTML = '';
+  unplanned.forEach(t => {
+    const tr = document.createElement('tr');
+    if (t.done) tr.className = 'done';
+    tr.innerHTML = `
+      <td><input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}',this.checked)"></td>
+      <td class="task-name-cell"><strong>${esc(t.name)}</strong></td>
+      <td><span class="badge badge-cat">${esc(t.category||'Other')}</span></td>
+      <td style="color:#6b6860;font-size:13px">${esc(t.notes)||'—'}</td>
+      <td><span class="badge badge-unplanned">⚡ Unplanned</span></td>
+      <td><button class="btn btn-xs btn-danger" onclick="deleteTask('${t.id}')">✕</button></td>
+    `;
+    ub.appendChild(tr);
+  });
+
+  /* Unplanned - mobile cards */
+  const uc = document.getElementById('unplanned-cards');
+  uc.innerHTML = '';
+  unplanned.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'task-card' + (t.done ? ' done' : '');
+    div.innerHTML = `
+      <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}',this.checked)" style="margin-top:2px">
+      <div class="task-card-body">
+        <div class="task-card-name">${esc(t.name)}</div>
+        <div class="task-card-meta">
+          <span class="badge badge-cat">${esc(t.category||'Other')}</span>
+          <span class="badge badge-unplanned">⚡</span>
+          ${t.notes ? `<span>${esc(t.notes)}</span>` : ''}
+        </div>
+      </div>
+      <button class="btn btn-xs btn-danger" onclick="deleteTask('${t.id}')">✕</button>
+    `;
+    uc.appendChild(div);
+  });
+
+  document.getElementById('unplanned-empty').style.display = unplanned.length ? 'none' : 'block';
+}
+
+function toggleTask(id, checked) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  t.done = checked;
+  if (t.recurringId) {
+    const r = recurring.find(x => x.id === t.recurringId);
+    if (r) {
+      r.daysLeft = checked ? Math.max(0, r.daysLeft - 1) : Math.min(r.totalDays, r.daysLeft + 1);
+      t.recurringDaysLeft = r.daysLeft;
+      notify(checked ? `✅ ${r.name}: ${r.daysLeft} day${r.daysLeft!==1?'s':''} remaining` : `↩ Unmarked — ${r.daysLeft} days left`);
+    }
+  } else {
+    notify(checked ? '✅ Task completed!' : '↩ Task unmarked');
+  }
+  saveData();
+  renderToday();
+}
+
+function deleteTask(id) {
+  if (!confirm('Remove this task?')) return;
+  tasks = tasks.filter(x => x.id !== id);
+  saveData(); renderToday();
+  notify('🗑 Task removed');
+}
+
+function quickAddUnplanned() {
+  const name = prompt('Enter unplanned task name:');
+  if (!name || !name.trim()) return;
+  tasks.push({ id: uid(), name: name.trim(), date: getViewDate(), type: 'unplanned', done: false, category: 'Other', notes: '' });
+  saveData(); renderToday();
+  notify('⚡ Unplanned task added: ' + name.trim());
+}
+
+/* ── ADD PLANNED ────────────────────────────── */
+function addPlannedTask() {
+  const name = document.getElementById('pt-name').value.trim();
+  if (!name) { alert('Task name is required!'); return; }
+  tasks.push({
+    id: uid(), name,
+    date:      document.getElementById('pt-date').value  || todayStr(),
+    type:      'planned', done: false,
+    startTime: document.getElementById('pt-start').value,
+    endTime:   document.getElementById('pt-end').value,
+    category:  document.getElementById('pt-cat').value,
+    notes:     document.getElementById('pt-notes').value.trim()
+  });
+  saveData(); clearPlannedForm();
+  notify('📌 Planned task added!');
+}
+function clearPlannedForm() {
+  ['pt-name','pt-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('pt-date').value  = todayStr();
+  document.getElementById('pt-start').value = '';
+  document.getElementById('pt-end').value   = '';
+}
+
+/* ── ADD UNPLANNED ──────────────────────────── */
+function addUnplannedTask() {
+  const name = document.getElementById('ut-name').value.trim();
+  if (!name) { alert('Task name is required!'); return; }
+  tasks.push({
+    id: uid(), name,
+    date:     document.getElementById('ut-date').value || todayStr(),
+    type:     'unplanned', done: false,
+    category: document.getElementById('ut-cat').value,
+    notes:    document.getElementById('ut-notes').value.trim()
+  });
+  saveData(); clearUnplannedForm();
+  notify('⚡ Unplanned task added!');
+}
+function clearUnplannedForm() {
+  ['ut-name','ut-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('ut-date').value = todayStr();
+}
+
+/* ── RECURRING ──────────────────────────────── */
+function addRecurring() {
+  const name = document.getElementById('rt-name').value.trim();
+  const days = parseInt(document.getElementById('rt-days').value) || 0;
+  if (!name || days < 1) { alert('Task name and number of days are required!'); return; }
+  recurring.push({
+    id: uid(), name,
+    startDate: document.getElementById('rt-start').value || todayStr(),
+    totalDays: days, daysLeft: days,
+    duration:  document.getElementById('rt-duration').value.trim(),
+    startTime: document.getElementById('rt-ts').value,
+    endTime:   document.getElementById('rt-te').value,
+    category:  document.getElementById('rt-cat').value
+  });
+  saveData();
+  ['rt-name','rt-days','rt-duration','rt-ts','rt-te'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('rt-start').value = todayStr();
+  renderRecurring();
+  notify('🔁 Recurring task created!');
+}
+
+function deleteRecurring(id) {
+  if (!confirm('Delete this recurring task and all its instances?')) return;
+  recurring = recurring.filter(x => x.id !== id);
+  tasks     = tasks.filter(x => x.recurringId !== id);
+  saveData(); renderRecurring();
+  notify('🗑 Recurring task removed');
+}
+
+function renderRecurring() {
+  const el = document.getElementById('recurring-list');
+  if (!recurring.length) {
+    el.innerHTML = '<div class="empty">No recurring tasks yet. Create one above!</div>';
+    return;
+  }
+  el.innerHTML = recurring.map(r => {
+    const pct = Math.round((r.totalDays - r.daysLeft) / r.totalDays * 100);
+    return `
+      <div class="rec-card">
+        <div class="rec-card-header">
+          <div>
+            <strong style="font-size:14px">${esc(r.name)}</strong>
+            <span class="badge badge-cat" style="margin-left:8px">${esc(r.category)}</span>
+          </div>
+          <button class="btn btn-xs btn-danger" onclick="deleteRecurring('${r.id}')">✕ Remove</button>
+        </div>
+        <div class="rec-meta">
+          <span>📅 Starts ${fmtDate(r.startDate)}</span>
+          ${r.duration ? `<span>⏱ ${esc(r.duration)} daily</span>` : ''}
+          ${r.startTime ? `<span>🕐 ${r.startTime}${r.endTime?' – '+r.endTime:''}</span>` : ''}
+          <span><strong>${r.daysLeft}</strong> / ${r.totalDays} days remaining</span>
+          <span style="color:${r.daysLeft===0?'#16a34a':'#2563eb'}">${pct}% complete</span>
+        </div>
+        <div class="rec-prog-wrap"><div class="rec-prog-bar" style="width:${pct}%"></div></div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ── PROGRESS ───────────────────────────────── */
+function renderProgress(type) {
+  const el = document.getElementById('progress-content');
+  if (progressChart) { progressChart.destroy(); progressChart = null; }
+
+  if (type === 'daily') {
+    const last14 = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      last14.push(d.toISOString().slice(0, 10));
+    }
+    const labels = last14.map(d => d.slice(5).replace('-', '/'));
+    const totals = last14.map(d => tasks.filter(t => t.date === d).length);
+    const dones  = last14.map(d => tasks.filter(t => t.date === d && t.done).length);
+    const pcts   = totals.map((t, i) => t > 0 ? Math.round(dones[i] / t * 100) : 0);
+    const todayT = tasks.filter(t => t.date === todayStr());
+    const todayD = todayT.filter(t => t.done).length;
+    const todayM = todayT.filter(t => t.done).reduce((a, t) => a + minuteDiff(t.startTime, t.endTime), 0);
+
+    el.innerHTML = `
+      <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+        <div class="metric"><span class="metric-val">${todayT.length}</span><span class="metric-lbl">Tasks Today</span></div>
+        <div class="metric"><span class="metric-val blue">${todayD}</span><span class="metric-lbl">Done Today</span></div>
+        <div class="metric"><span class="metric-val amber">${fmtMin(todayM)}</span><span class="metric-lbl">Time Today</span></div>
+      </div>
+      <div class="card"><div class="card-title">Last 14 Days — Completion %</div><div class="chart-wrap"><canvas id="pchart"></canvas></div></div>
+      <div class="card" style="margin-top:16px"><div class="card-title">Tasks per Day (last 14 days)</div><div class="chart-wrap"><canvas id="pchart2"></canvas></div></div>
+    `;
+    setTimeout(() => {
+      buildChart('pchart',  'bar',  labels, pcts,   'Completion %', '#2563eb', '#bfdbfe', true);
+      buildChart('pchart2', 'line', labels, totals, 'Tasks',        '#0d9488', '#99f6e4', false);
+    }, 30);
+
+  } else if (type === 'monthly') {
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+      months.push(d.toISOString().slice(0, 7));
+    }
+    const labels = months.map(m => {
+      const [y, mo] = m.split('-');
+      return new Date(+y, +mo - 1).toLocaleString('default', { month: 'short', year: '2-digit' });
+    });
+    const totals = months.map(m => tasks.filter(t => t.date.startsWith(m)).length);
+    const dones  = months.map(m => tasks.filter(t => t.date.startsWith(m) && t.done).length);
+    const pcts   = totals.map((t, i) => t > 0 ? Math.round(dones[i] / t * 100) : 0);
+    const totalA = totals.reduce((a, b) => a + b, 0);
+    const doneA  = dones.reduce((a, b) => a + b, 0);
+
+    el.innerHTML = `
+      <div class="metrics" style="grid-template-columns:repeat(3,1fr)">
+        <div class="metric"><span class="metric-val">${totalA}</span><span class="metric-lbl">Tasks (6 months)</span></div>
+        <div class="metric"><span class="metric-val blue">${doneA}</span><span class="metric-lbl">Completed</span></div>
+        <div class="metric"><span class="metric-val green">${totalA > 0 ? Math.round(doneA/totalA*100) : 0}%</span><span class="metric-lbl">Avg Rate</span></div>
+      </div>
+      <div class="card"><div class="card-title">Monthly Completion % (last 6 months)</div><div class="chart-wrap"><canvas id="pchart"></canvas></div></div>
+    `;
+    setTimeout(() => buildChart('pchart', 'bar', labels, pcts, 'Completion %', '#0d9488', '#99f6e4', true), 30);
+
+  } else {
+    const curY  = new Date().getFullYear();
+    const years = [curY - 2, curY - 1, curY].map(String);
+    const totals = years.map(y => tasks.filter(t => t.date.startsWith(y)).length);
+    const dones  = years.map(y => tasks.filter(t => t.date.startsWith(y) && t.done).length);
+    const pcts   = totals.map((t, i) => t > 0 ? Math.round(dones[i] / t * 100) : 0);
+    const recDone = recurring.filter(r => r.daysLeft === 0).length;
+
+    el.innerHTML = `
+      <div class="metrics" style="grid-template-columns:repeat(4,1fr)">
+        <div class="metric"><span class="metric-val">${tasks.length}</span><span class="metric-lbl">All-time Tasks</span></div>
+        <div class="metric"><span class="metric-val blue">${tasks.filter(t=>t.done).length}</span><span class="metric-lbl">Completed</span></div>
+        <div class="metric"><span class="metric-val green">${recurring.length}</span><span class="metric-lbl">Recurring Created</span></div>
+        <div class="metric"><span class="metric-val amber">${recDone}</span><span class="metric-lbl">Recurring Finished</span></div>
+      </div>
+      <div class="card"><div class="card-title">Yearly Completion %</div><div class="chart-wrap"><canvas id="pchart"></canvas></div></div>
+    `;
+    setTimeout(() => buildChart('pchart', 'bar', years, pcts, 'Completion %', '#d97706', '#fde68a', true), 30);
+  }
+}
+
+function buildChart(id, type, labels, data, label, color, colorLight, isPercent) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  progressChart = new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [{ label, data, backgroundColor: colorLight, borderColor: color, borderWidth: 2,
+        borderRadius: type === 'bar' ? 6 : 0, fill: type === 'line', tension: 0.35,
+        pointBackgroundColor: color, pointRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y}${isPercent?'%':' tasks'}` } }
+      },
+      scales: {
+        y: {
+          min: 0, max: isPercent ? 100 : undefined,
+          ticks: { callback: v => v+(isPercent?'%':''), font: { size: 11, family:"'DM Mono',monospace" }, color: '#9e9c93' },
+          grid: { color: 'rgba(0,0,0,0.05)' }
+        },
+        x: {
+          ticks: { font: { size: 11, family:"'DM Mono',monospace" }, color: '#9e9c93', autoSkip: false, maxRotation: 45 },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+/* ── EXPORT CSV ─────────────────────────────── */
+function exportCSV() {
+  const th = 'id,name,date,type,done,startTime,endTime,category,notes,recurringId';
+  const rows = tasks.map(t => [
+    t.id, `"${(t.name||'').replace(/"/g,'""')}"`, t.date, t.type, t.done?1:0,
+    t.startTime||'', t.endTime||'', t.category||'',
+    `"${(t.notes||'').replace(/"/g,'""')}"`, t.recurringId||''
+  ].join(','));
+  const rh = 'id,name,startDate,totalDays,daysLeft,duration,startTime,endTime,category';
+  const rr = recurring.map(r => [
+    r.id, `"${r.name.replace(/"/g,'""')}"`, r.startDate, r.totalDays, r.daysLeft,
+    r.duration||'', r.startTime||'', r.endTime||'', r.category||''
+  ].join(','));
+  const csv = 'TASKS\n' + th + '\n' + rows.join('\n') + '\n\nRECURRING\n' + rh + '\n' + rr.join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'routine_' + todayStr() + '.csv';
+  a.click();
+  notify('📥 CSV exported!');
+}
+
+/* ── IMPORT ─────────────────────────────────── */
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const text = e.target.result;
+      const lines = text.split('\n');
+      let section = '', imported = 0;
+      lines.forEach(line => {
+        const l = line.trim();
+        if (l === 'TASKS')     { section = 'tasks'; return; }
+        if (l === 'RECURRING') { section = 'rec';   return; }
+        if (!l || l.startsWith('id,')) return;
+        const p = parseCSVLine(l);
+        if (section === 'tasks' && p.length >= 8) {
+          if (!tasks.find(t => t.id === p[0])) {
+            tasks.push({ id:p[0], name:p[1], date:p[2], type:p[3], done:p[4]==='1', startTime:p[5], endTime:p[6], category:p[7], notes:p[8]||'', recurringId:p[9]||'' });
+            imported++;
+          }
+        } else if (section === 'rec' && p.length >= 5) {
+          if (!recurring.find(r => r.id === p[0])) {
+            recurring.push({ id:p[0], name:p[1], startDate:p[2], totalDays:+p[3], daysLeft:+p[4], duration:p[5]||'', startTime:p[6]||'', endTime:p[7]||'', category:p[8]||'Other' });
+            imported++;
+          }
+        }
+      });
+      saveData(); renderToday();
+      notify(`✅ Imported ${imported} records!`);
+    } catch(err) { alert('Import failed: ' + err.message); }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+function parseCSVLine(line) {
+  const res = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+    else if (line[i] === ',' && !inQ) { res.push(cur); cur = ''; }
+    else cur += line[i];
+  }
+  res.push(cur); return res;
+}
+
+/* ── INIT ───────────────────────────────────── */
+loadData();
+if (gsUrl) {
+  setSyncStatus('syncing', 'Connecting…');
+  fetchFromSheets().then(ok => {
+    if (ok) { renderToday(); renderRecurring(); }
+    else setSyncStatus('error', 'Offline');
+  });
+} else {
+  setSyncStatus('local', 'Local only');
+  // Only show setup modal if URL is not hardcoded and user hasn't seen it
+  if (!HARDCODED_SHEETS_URL.includes('YOUR_SCRIPT_ID_HERE') === false
+      && !localStorage.getItem('myRoutine_seenSetup')) {
+    localStorage.setItem('myRoutine_seenSetup', '1');
+    setTimeout(() => openSetupModal(), 400);
+  }
+}
+
+const t = todayStr();
+document.getElementById('view-date').value = t;
+document.getElementById('pt-date').value   = t;
+document.getElementById('ut-date').value   = t;
+document.getElementById('rt-start').value  = t;
+renderToday();
+</script>
+</body>
+</html>
